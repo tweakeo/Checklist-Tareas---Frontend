@@ -3,6 +3,7 @@
 Frontend visual y táctil (uso desde **tablet**) para marcar las tareas recurrentes diarias del equipo de **Chamberí Brothers / Paletos**, montado sobre el sistema que vive en Notion (HEADQUARTERS › OPERATIVA DIARIA). Estética: **design system de Paletos Club**.
 
 - 📄 **Concepto técnico canónico:** [`concepto.md`](./concepto.md)
+- 🤝 **Despliegue (guía para Claude Desktop):** [`GUIA-CLAUDE-DESKTOP.md`](./GUIA-CLAUDE-DESKTOP.md)
 - 🗂️ **Proyecto en Notion:** HEADQUARTERS › PROYECTOS & MEJORA CONTINUA › *SISTEMA DE TAREAS*
 - 🎨 **Design System:** `…/Chamberí Brothers/Paletos Club/Design System/`
 
