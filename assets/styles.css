@@ -57,11 +57,12 @@ body { overscroll-behavior-y: none; }
 .app { max-width: 1100px; margin: 0 auto; padding: 0 18px 120px; }
 
 /* ---------------- TOPBAR ---------------- */
+/* Cabecera fija: título + barra de vista como un único bloque opaco.
+   Evita franjas transparentes y solapes al hacer scroll. */
+.stickyhead { position: sticky; top: 0; z-index: 30; background: var(--pc-paper); }
 .topbar {
-  position: sticky; top: 0; z-index: 30;
   display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
   padding: 20px 0 16px;
-  background: linear-gradient(var(--pc-paper) 78%, transparent);
 }
 .eyebrow {
   display: block; font-weight: 700; font-size: 12px; letter-spacing: 0.18em;
@@ -80,7 +81,7 @@ body { overscroll-behavior-y: none; }
 .score {
   font-family: var(--font-display); font-size: clamp(30px, 6vw, 46px);
   line-height: 1; background: var(--pc-ink); color: var(--pc-paper);
-  padding: 8px 16px; box-shadow: var(--shadow-stamp-lg);
+  padding: 8px 16px; box-shadow: 7px 7px 0 0 var(--pc-red);
 }
 .score__done { color: var(--pc-yellow); }
 .score__sep { opacity: 0.5; margin: 0 2px; }
@@ -91,7 +92,7 @@ body { overscroll-behavior-y: none; }
 
 /* ---------------- MODE BAR ---------------- */
 .modebar {
-  display: flex; gap: 10px; margin: 4px 0 14px; position: sticky; top: 108px; z-index: 25;
+  display: flex; gap: 10px; margin: 0 0 14px;
 }
 .modebtn {
   flex: 1; min-height: 58px; font-family: var(--font-body); font-weight: 800;
@@ -124,7 +125,7 @@ body { overscroll-behavior-y: none; }
 .group__head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 14px 18px; border-bottom: 2px solid var(--pc-ink);
-  background: var(--pc-grey-100); position: sticky; top: 176px; z-index: 10;
+  background: var(--pc-grey-100); position: sticky; top: var(--head-h, 188px); z-index: 10;
 }
 .group__title {
   font-family: var(--font-display); font-size: 24px; text-transform: uppercase;
@@ -205,9 +206,10 @@ body { overscroll-behavior-y: none; }
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(140%);
   background: var(--pc-ink); color: var(--pc-paper); font-weight: 700;
   padding: 14px 22px; box-shadow: var(--shadow-stamp); z-index: 100;
-  transition: transform 280ms var(--ease-snap); max-width: 90vw; text-align: center;
+  transition: transform 280ms var(--ease-snap), opacity 200ms; max-width: 90vw; text-align: center;
+  opacity: 0; visibility: hidden; pointer-events: none;
 }
-.toast.is-show { transform: translateX(-50%) translateY(0); }
+.toast.is-show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
 .toast.is-error { background: var(--pc-red); }
 
 .loading { text-align: center; padding: 60px 20px; color: var(--pc-grey-500); font-family: var(--font-mono); }

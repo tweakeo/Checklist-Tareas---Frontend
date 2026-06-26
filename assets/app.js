@@ -217,3 +217,13 @@ document.querySelectorAll(".modebtn").forEach((b) =>
 $("#reloadBtn").addEventListener("click", loadTasks);
 
 loadTasks();
+
+// Las cabeceras de grupo se anclan justo debajo de la cabecera fija (altura variable).
+(function () {
+  const head = document.querySelector(".stickyhead");
+  if (!head) return;
+  const setH = () => document.documentElement.style.setProperty("--head-h", head.offsetHeight + "px");
+  setH();
+  if (window.ResizeObserver) new ResizeObserver(setH).observe(head);
+  window.addEventListener("resize", setH);
+})();
