@@ -6,12 +6,12 @@
 
 @font-face {
   font-family: "Chunk Five Print";
-  src: url("fonts/Chunk Five Print.ttf") format("truetype");
+  src: url("fonts/Chunk Five Print.ttf?v=2") format("truetype");
   font-weight: 400; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: "Chunk Five";
-  src: url("fonts/Chunk.ttf") format("truetype");
+  src: url("fonts/Chunk.ttf?v=2") format("truetype");
   font-weight: 400; font-style: normal; font-display: swap;
 }
 /* Alfa Slab One = respaldo con acentos para la display (Chunk no trae á/é/í/ó/ú/ñ/ü) */
@@ -26,10 +26,9 @@
   --pc-grey-300: #C9C3B5; --pc-grey-200: #E2DCCC; --pc-grey-100: #EFEADD;
   --success: #2F7D3A;
 
+  /* Chunk Five Print parcheada con acentos españoles (Á É Í Ó Ú Ñ Ü).
+     Alfa Slab One queda como respaldo por si faltara algún glifo. */
   --font-display: "Chunk Five Print", "Alfa Slab One", "Roboto Slab", Georgia, serif;
-  /* Para títulos que pueden llevar acentos (p.ej. "LEÓN"): una sola fuente CON tildes,
-     así no se mezcla Chunk (sin acentos) con el respaldo dentro de una misma palabra. */
-  --font-display-accents: "Alfa Slab One", "Roboto Slab", Georgia, serif;
   --font-body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Space Mono", ui-monospace, Menlo, monospace;
 
@@ -128,7 +127,7 @@ body { overscroll-behavior-y: none; }
   background: var(--pc-grey-100); position: sticky; top: 176px; z-index: 10;
 }
 .group__title {
-  font-family: var(--font-display-accents); font-size: 24px; text-transform: uppercase;
+  font-family: var(--font-display); font-size: 24px; text-transform: uppercase;
   letter-spacing: 0; display: flex; align-items: center; gap: 10px;
 }
 .group__title .group__dot { width: 16px; height: 16px; border-radius: 50%; }
