@@ -28,13 +28,11 @@
       </div>
     </header>
 
-    <nav class="modebar" role="tablist" aria-label="Vista">
-      <button class="modebtn is-active" data-mode="persona" role="tab" aria-selected="true">👤 Por persona</button>
-      <button class="modebtn" data-mode="turno" role="tab" aria-selected="false">🌅 Por turno</button>
-    </nav>
+    <div class="filters">
+      <div class="filterrow" id="turnoBar" role="group" aria-label="Filtrar por turno"></div>
+      <div class="filterrow" id="personBar" role="group" aria-label="Filtrar por persona"></div>
     </div>
-
-    <div class="chipbar" id="chipbar"></div>
+    </div>
 
     <main class="board" id="board" aria-live="polite"></main>
 

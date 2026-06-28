@@ -2,6 +2,10 @@
    Tareas de Hoy — Chamberí Brothers
    Modo SEED (data/seed.json) por defecto · modo LIVE con ?live (usa /api/*)
    "Marcar" = crear un registro de ejecución (en LIVE lo hace el proxy).
+
+   Filtros TURNO × PERSONA: independientes y apilables (lógica AND).
+   P.ej. 🌅 Apertura + León, o 🌙 Cierre + Chopo. La agrupación del tablero
+   se adapta a lo que esté fijado (ver currentGrouping / buildGroups).
    ===================================================================== */
 
 const CONFIG = {
@@ -20,8 +24,8 @@ const PERSON_COLOR = {
 
 const state = {
   tasks: [],
-  mode: "persona",       // 'persona' | 'turno'
-  person: null,          // null = todos
+  turno: null,           // null = todos los turnos
+  person: null,          // null = todas las personas
   done: new Set(),
   source: "semilla",
 };
@@ -51,18 +55,40 @@ async function loadTasks() {
     console.error(e);
   }
   state.done.clear();
+  // Si un filtro activo ya no existe en los datos cargados, lo soltamos.
+  if (state.turno && !taskTurnos().includes(state.turno)) state.turno = null;
+  if (state.person && !taskPersons().includes(state.person)) state.person = null;
   $("#sourceLabel").textContent = "datos: " + state.source;
   render();
 }
 
 /* ---------------- HELPERS ---------------- */
 function pending() { return state.tasks.filter((t) => !state.done.has(t.id)); }
+function personsOf(t) { return t.responsables.length ? t.responsables : ["Sin asignar"]; }
+function turnoOf(t) { return t.turno || "Sin turno"; }
 
 function uniqueByOrder(values, order) {
   const set = new Set(values);
   const ordered = order.filter((v) => set.has(v));
   const rest = [...set].filter((v) => !order.includes(v));
   return [...ordered, ...rest];
+}
+
+function taskTurnos() { return uniqueByOrder(state.tasks.map(turnoOf), TURNO_ORDER); }
+function taskPersons() { return uniqueByOrder(state.tasks.flatMap(personsOf), PERSON_ORDER); }
+
+// ¿La tarea pasa los filtros activos (turno Y persona)? Ignora el estado "hecha".
+function matchesFilters(t) {
+  const okTurno = !state.turno || turnoOf(t) === state.turno;
+  const okPerson = !state.person || personsOf(t).includes(state.person);
+  return okTurno && okPerson;
+}
+
+// Agrupamos por la dimensión que NO está fijada. Si ambas están fijadas → lista plana.
+function currentGrouping() {
+  if (state.turno && state.person) return null;
+  if (state.turno && !state.person) return "persona";
+  return "turno"; // (persona fijada con turno libre) o (sin filtros) → línea de turnos
 }
 
 function prioClass(p) {
@@ -78,11 +104,22 @@ function esc(s) { return (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 /* ---------------- RENDER ---------------- */
 function render() {
   renderScore();
-  renderChips();
+  renderFilters();
   const groups = buildGroups();
   board.innerHTML = "";
 
   const hasAny = groups.some((g) => g.tasks.length > 0);
+  const scopeTotal = state.tasks.filter(matchesFilters).length;
+  if (!hasAny) {
+    const empty = $("#emptyState");
+    if (scopeTotal === 0) {
+      empty.querySelector("h2").textContent = "Sin tareas aquí";
+      empty.querySelector("p").textContent = "No hay tareas para esta combinación de filtros.";
+    } else {
+      empty.querySelector("h2").textContent = "¡Todo hecho!";
+      empty.querySelector("p").textContent = "No quedan tareas pendientes en esta vista. Buen trabajo.";
+    }
+  }
   $("#emptyState").hidden = hasAny;
   board.hidden = !hasAny;
   if (!hasAny) return;
@@ -91,13 +128,12 @@ function render() {
     if (!g.tasks.length) continue;
     const sec = document.createElement("section");
     sec.className = "group";
-    const clear = g.tasks.length === 0;
     sec.innerHTML = `
       <div class="group__head">
         <span class="group__title">
           ${g.dot ? `<span class="group__dot" style="background:${g.dot}"></span>` : ""}${esc(g.title)}
         </span>
-        <span class="group__count ${clear ? "is-clear" : ""}">${g.tasks.length} pdte${g.tasks.length === 1 ? "" : "s"}</span>
+        <span class="group__count">${g.tasks.length} pdte${g.tasks.length === 1 ? "" : "s"}</span>
       </div>
       <div class="group__list"></div>`;
     const list = sec.querySelector(".group__list");
@@ -107,33 +143,44 @@ function render() {
 }
 
 function buildGroups() {
-  const p = pending();
-  if (state.mode === "turno") {
-    const turnos = uniqueByOrder(p.map((t) => t.turno || "Sin turno"), TURNO_ORDER);
+  const p = pending().filter(matchesFilters);
+  const g = currentGrouping();
+
+  if (g === "turno") {
+    const turnos = uniqueByOrder(p.map(turnoOf), TURNO_ORDER);
     return turnos.map((turno) => ({
       title: turno,
-      tasks: p.filter((t) => (t.turno || "Sin turno") === turno),
+      tasks: p.filter((t) => turnoOf(t) === turno),
     }));
   }
-  // persona
-  const filtered = state.person ? p.filter((t) => t.responsables.includes(state.person)) : p;
-  const persons = state.person
-    ? [state.person]
-    : uniqueByOrder(filtered.flatMap((t) => t.responsables.length ? t.responsables : ["Sin asignar"]), PERSON_ORDER);
-  return persons.map((person) => ({
-    title: person,
-    dot: PERSON_COLOR[person] || "var(--pc-grey-500)",
-    tasks: filtered.filter((t) => (t.responsables.length ? t.responsables : ["Sin asignar"]).includes(person)),
-  }));
+  if (g === "persona") {
+    const persons = uniqueByOrder(p.flatMap(personsOf), PERSON_ORDER);
+    return persons.map((person) => ({
+      title: person,
+      dot: PERSON_COLOR[person] || "var(--pc-grey-500)",
+      tasks: p.filter((t) => personsOf(t).includes(person)),
+    }));
+  }
+  // Ambos filtros fijados → una sola lista, con el combo como cabecera.
+  return [{
+    title: `${state.turno} · ${state.person}`,
+    dot: PERSON_COLOR[state.person] || null,
+    tasks: p,
+  }];
 }
 
 function taskCard(t) {
+  const g = currentGrouping();
+  // Mostramos una etiqueta solo si aporta info: ni está fijada por el filtro ni es la cabecera de grupo.
+  const showTurno = !state.turno && g !== "turno";
+  const showPersons = !state.person && g !== "persona";
+
   const el = document.createElement("article");
   el.className = "task";
   el.dataset.id = t.id;
   const tags = [];
-  if (state.mode === "persona" && t.turno) tags.push(`<span class="tag tag--turno">${esc(t.turno)}</span>`);
-  if (state.mode === "turno") t.responsables.forEach((r) => tags.push(`<span class="tag" style="border-color:${PERSON_COLOR[r] || "var(--pc-ink)"}">${esc(r)}</span>`));
+  if (showTurno && t.turno) tags.push(`<span class="tag tag--turno">${esc(t.turno)}</span>`);
+  if (showPersons) personsOf(t).forEach((r) => tags.push(`<span class="tag" style="border-color:${PERSON_COLOR[r] || "var(--pc-ink)"}">${esc(r)}</span>`));
   if (t.prioridad) tags.push(`<span class="tag ${prioClass(t.prioridad)}">${esc(t.prioridad)}</span>`);
   if (t.mins) tags.push(`<span class="tag tag--mins">${t.mins}′</span>`);
   el.innerHTML = `
@@ -149,25 +196,48 @@ function taskCard(t) {
 }
 
 function renderScore() {
-  $("#scoreDone").textContent = state.done.size;
-  $("#scoreTotal").textContent = state.tasks.length;
-  const today = new Date(state.tasks.length ? Date.now() : Date.now());
+  const scope = state.tasks.filter(matchesFilters);
+  const doneInScope = scope.filter((t) => state.done.has(t.id)).length;
+  $("#scoreDone").textContent = doneInScope;
+  $("#scoreTotal").textContent = scope.length;
   $("#dateLabel").textContent = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 }
 
-function renderChips() {
-  const bar = $("#chipbar");
-  if (state.mode !== "persona") { bar.innerHTML = ""; bar.style.display = "none"; return; }
-  bar.style.display = "flex";
-  const persons = uniqueByOrder(state.tasks.flatMap((t) => t.responsables), PERSON_ORDER);
-  const chip = (label, value, color) =>
-    `<button class="chip ${state.person === value ? "is-active" : ""}" data-person="${value === null ? "" : esc(value)}">
-      ${color ? `<span class="chip__dot" style="background:${color}"></span>` : ""}${esc(label)}
+/* ---------------- FILTER BARS (turno × persona, apilables) ---------------- */
+function renderFilters() {
+  renderFilterBar({
+    bar: $("#turnoBar"),
+    label: "Turno",
+    values: taskTurnos(),
+    active: state.turno,
+    colorOf: () => null,
+    onPick: (v) => { state.turno = v; render(); },
+  });
+  renderFilterBar({
+    bar: $("#personBar"),
+    label: "Persona",
+    values: taskPersons(),
+    active: state.person,
+    colorOf: (v) => PERSON_COLOR[v] || null,
+    onPick: (v) => { state.person = v; render(); },
+  });
+}
+
+function renderFilterBar({ bar, label, values, active, colorOf, onPick }) {
+  const chip = (text, value) => {
+    const color = value === null ? null : colorOf(value);
+    return `<button class="chip ${active === value ? "is-active" : ""}" data-value="${value === null ? "" : esc(value)}">
+      ${color ? `<span class="chip__dot" style="background:${color}"></span>` : ""}${esc(text)}
     </button>`;
-  bar.innerHTML = chip("Todos", null, null) + persons.map((p) => chip(p, p, PERSON_COLOR[p])).join("");
-  bar.querySelectorAll(".chip").forEach((c) =>
-    c.addEventListener("click", () => { state.person = c.dataset.person || null; render(); })
-  );
+  };
+  bar.innerHTML =
+    `<span class="filterrow__label">${esc(label)}</span>` +
+    chip("Todos", null) +
+    values.map((v) => chip(v, v)).join("");
+  // Reconstruimos el mapa valor↔índice para no depender de re-escapar el dataset.
+  const buttons = [...bar.querySelectorAll(".chip")];
+  const order = [null, ...values];
+  buttons.forEach((b, i) => b.addEventListener("click", () => onPick(order[i])));
 }
 
 /* ---------------- CHECK ACTION ---------------- */
@@ -206,14 +276,6 @@ function toast(msg, isError) {
   toastTimer = setTimeout(() => el.classList.remove("is-show"), 2200);
 }
 
-document.querySelectorAll(".modebtn").forEach((b) =>
-  b.addEventListener("click", () => {
-    document.querySelectorAll(".modebtn").forEach((x) => { x.classList.remove("is-active"); x.setAttribute("aria-selected", "false"); });
-    b.classList.add("is-active"); b.setAttribute("aria-selected", "true");
-    state.mode = b.dataset.mode;
-    render();
-  })
-);
 $("#reloadBtn").addEventListener("click", loadTasks);
 
 loadTasks();
