@@ -1,9 +1,10 @@
-// GET /api/today — tareas de HOY desde la biblioteca de Notion.
-// Queremos las que cumplen ES HOY="true" y Hecha hoy="false" (ambas fórmulas de texto).
-// OJO: Notion rechaza filtrar por estas fórmulas en la query ("Unable to filter based on
-// a formula of unknown type", porque dependen de now()/rollup). Por eso traemos la
-// biblioteca completa y filtramos por el VALOR de la fórmula en cada página, aquí en el Worker.
-// Requiere la variable de entorno NOTION_TOKEN (secreta, server-side).
+// GET /api/today — tareas de la biblioteca de Notion, divididas en:
+//   · tasks      → pendientes de HOY: ES HOY="true" y Hecha hoy="false"
+//   · completed  → completadas hoy: Hecha hoy="true" (espejo de la vista "Completadas")
+// Ambas (ES HOY / Hecha hoy) son fórmulas de texto. OJO: Notion rechaza filtrar por
+// ellas en la query ("Unable to filter based on a formula of unknown type", dependen de
+// now()/rollup). Por eso traemos la biblioteca completa y filtramos por el VALOR de la
+// fórmula en cada página, aquí en el Worker. Requiere NOTION_TOKEN (secreto, server-side).
 
 const BIBLIOTECA = "361e4f0f-ad19-813b-81d2-000b0302a672";
 const NOTION_VERSION = "2025-09-03";
@@ -30,27 +31,28 @@ export async function onRequestGet({ env }) {
     cursor = data.has_more ? data.next_cursor : null;
   } while (cursor);
 
-  const tasks = all
-    .filter((p) => {
-      const P = p.properties;
-      return P["ES HOY"]?.formula?.string === "true" && P["Hecha hoy"]?.formula?.string === "false";
-    })
-    .map((p) => {
-      const P = p.properties;
-      return {
-        id: p.id,
-        tarea: P.TAREA?.title?.[0]?.plain_text || "",
-        responsables: (P.RESPONSABLE?.multi_select || []).map((o) => o.name),
-        turno: P.TURNO?.select?.name || "Sin turno",
-        dia: (P["DÍA"]?.multi_select || []).map((o) => o.name),
-        prioridad: P.PRIORIDAD?.select?.name || null,
-        categoria: (P["CATEGORÍA"]?.multi_select || []).map((o) => o.name),
-        mins: P["TIEMPO (mins)"]?.number ?? null,
-        hechaHoy: false,
-      };
-    });
+  const esHoy = (p) => p.properties["ES HOY"]?.formula?.string === "true";
+  const hechaHoy = (p) => p.properties["Hecha hoy"]?.formula?.string === "true";
 
-  return json({ generatedAt: new Date().toISOString().slice(0, 10), source: "notion", tasks });
+  const tasks = all.filter((p) => esHoy(p) && !hechaHoy(p)).map(mapTask);
+  const completed = all.filter((p) => hechaHoy(p)).map(mapTask);
+
+  return json({ generatedAt: new Date().toISOString().slice(0, 10), source: "notion", tasks, completed });
+}
+
+function mapTask(p) {
+  const P = p.properties;
+  return {
+    id: p.id,
+    tarea: P.TAREA?.title?.[0]?.plain_text || "",
+    responsables: (P.RESPONSABLE?.multi_select || []).map((o) => o.name),
+    turno: P.TURNO?.select?.name || "Sin turno",
+    dia: (P["DÍA"]?.multi_select || []).map((o) => o.name),
+    prioridad: P.PRIORIDAD?.select?.name || null,
+    categoria: (P["CATEGORÍA"]?.multi_select || []).map((o) => o.name),
+    mins: P["TIEMPO (mins)"]?.number ?? null,
+    hechaHoy: P["Hecha hoy"]?.formula?.string === "true",
+  };
 }
 
 function json(obj, status = 200) {

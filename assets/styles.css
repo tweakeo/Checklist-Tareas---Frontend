@@ -90,6 +90,25 @@ body { overscroll-behavior-y: none; }
   letter-spacing: 0.18em; text-transform: uppercase; color: var(--pc-grey-500);
 }
 
+/* Botón de vista (Pendientes ⇄ Completadas), a la izquierda del marcador */
+.topbar__right { display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0; }
+.viewtoggle {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: 88px; padding: 10px 12px; cursor: pointer;
+  background: var(--pc-paper-pure); color: var(--pc-ink);
+  border: 2px solid var(--pc-ink); border-radius: 0; box-shadow: var(--shadow-stamp);
+  font-family: var(--font-display); text-transform: uppercase;
+  transition: transform 90ms var(--ease-out), box-shadow 90ms var(--ease-out), background 120ms;
+}
+.viewtoggle__icon { font-size: 26px; line-height: 1; }
+.viewtoggle__label { font-size: 12px; letter-spacing: 0.01em; }
+.viewtoggle:hover { background: var(--pc-yellow); }
+.viewtoggle:active { transform: translate(3px, 3px); box-shadow: none; }
+.viewtoggle.is-active {
+  background: var(--pc-ink); color: var(--pc-paper);
+  box-shadow: 4px 4px 0 0 var(--pc-red);
+}
+
 /* ---------------- FILTER BARS (turno × persona, apilables) ---------------- */
 .filters { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 14px; }
 .filterrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -174,6 +193,18 @@ body { overscroll-behavior-y: none; }
 .task.is-checking .checkbtn { background: var(--success); color: var(--pc-paper); border-color: var(--pc-ink); transform: translate(4px,4px); box-shadow: none; }
 .task.is-done { opacity: 0; transform: translateX(40px); height: 0; padding: 0 16px; overflow: hidden; border: 0; }
 
+/* COMPLETADAS — tarjeta de solo lectura, con sello verde en vez de botón Check */
+.task--done { background: rgba(47, 125, 58, 0.05); }
+.task--done .task__name { color: var(--pc-grey-700); }
+.donebadge {
+  flex-shrink: 0; width: 92px; min-height: 76px;
+  border: 2px solid var(--success); background: #eafbe9; color: var(--success);
+  font-family: var(--font-display); font-size: 14px; text-transform: uppercase;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border-radius: 0;
+}
+.donebadge__icon { font-size: 30px; line-height: 1; }
+
 /* ---------------- EMPTY / FOOTER / TOAST ---------------- */
 .emptystate { text-align: center; padding: 70px 20px; }
 .emptystate__mark {
@@ -208,7 +239,10 @@ body { overscroll-behavior-y: none; }
 
 @media (max-width: 560px) {
   .topbar { flex-direction: row; align-items: flex-start; }
-  .checkbtn { width: 78px; min-height: 70px; }
+  .checkbtn, .donebadge { width: 78px; min-height: 70px; }
   .task__name { font-size: 17px; }
+  .viewtoggle { min-width: 72px; padding: 8px 8px; }
+  .viewtoggle__icon { font-size: 22px; }
+  .viewtoggle__label { font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

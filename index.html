@@ -18,13 +18,19 @@
         <h1 class="topbar__title">Tareas de hoy</h1>
         <span class="topbar__date" id="dateLabel">—</span>
       </div>
-      <div class="topbar__score">
-        <div class="score">
-          <span class="score__done" id="scoreDone">0</span>
-          <span class="score__sep">/</span>
-          <span class="score__total" id="scoreTotal">0</span>
+      <div class="topbar__right">
+        <button class="viewtoggle" id="viewToggle" type="button" aria-pressed="false" title="Ver tareas completadas hoy">
+          <span class="viewtoggle__icon" id="viewToggleIcon">✓</span>
+          <span class="viewtoggle__label" id="viewToggleLabel">Completadas</span>
+        </button>
+        <div class="topbar__score">
+          <div class="score">
+            <span class="score__done" id="scoreDone">0</span>
+            <span class="score__sep">/</span>
+            <span class="score__total" id="scoreTotal">0</span>
+          </div>
+          <span class="score__label">hechas</span>
         </div>
-        <span class="score__label">hechas</span>
       </div>
     </header>
 

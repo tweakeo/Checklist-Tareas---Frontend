@@ -48,6 +48,7 @@ Las vistas HOY filtran `ES HOY = "true"` **y** `Hecha hoy = "false"`.
 
 - **Leer tareas de HOY**: query a la fuente de la biblioteca filtrando `ES HOY = "true"` y `Hecha hoy = "false"` (filtros de tipo string sobre fórmula).
 - **Filtrar la vista — TURNO × PERSONA, apilables**: dos barras de filtro independientes que se combinan con lógica AND (p.ej. `🌅 Apertura + León`, `🌙 Cierre + Chopo`). Cada barra es mono-selección con opción "Todos". La **agrupación es adaptativa**: si solo se fija la persona → se agrupa por turno; si solo se fija el turno → se agrupa por persona; si se fijan ambos → lista única con el combo como cabecera; sin filtros → vista general por turno. El marcador "hechas" refleja el ámbito filtrado.
+- **Dos vistas (botón a la izquierda del marcador)**: *Pendientes* (lo de arriba) y *Completadas* del día. La vista Completadas refleja la vista "Completadas" de la biblioteca en Notion = tareas con `Hecha hoy = "true"`. `/api/today` devuelve ambas listas: `tasks` (`ES HOY=true ∧ Hecha hoy=false`) y `completed` (`Hecha hoy=true`). Los filtros turno/persona y la agrupación aplican igual en ambas vistas; las tarjetas de completadas son de solo lectura (sello "✓ Hecha", sin botón Check).
 - **Marcar (Check)**: NO se edita un campo — se **crea una página** en REGISTRO DE TAREAS EJECUTADAS:
   - parent `data_source_id = 262028f9-a188-4f8b-a1a3-5ff768906107`
   - `Tarea` (title) = nombre de la tarea
@@ -67,11 +68,13 @@ Las vistas HOY filtran `ES HOY = "true"` **y** `Hecha hoy = "false"`.
 ## 5. Alcance v1
 
 - ✅ Vista "HOY" con tarjetas grandes + botón Check, filtrable por **turno y persona apilables** (ver §3).
+- ✅ Vista **Completadas** del día (solo lectura) accesible desde el botón junto al marcador.
 - ✅ Marcar tarea (crea ejecución) + feedback inmediato.
 - ❌ Edición de la biblioteca (se sigue en Notion).
 - ❌ Tareas emergentes / de proyectos.
 
 ## CHANGELOG
 
+- **2026-06-28** — Nueva **vista Completadas** del día (botón a la izquierda del marcador). `/api/today` ahora devuelve también `completed` (`Hecha hoy=true`). Reutiliza filtros apilables y agrupación; tarjetas de solo lectura. El marcador pasa a `completadas / total del día`.
 - **2026-06-28** — Las vistas "Por persona" y "Por turno" dejan de ser modos excluyentes y pasan a ser **dos filtros independientes y apilables** (turno × persona, lógica AND), con agrupación adaptativa y marcador por ámbito filtrado. Verificado en local (modo semilla).
 - **2026-06-25** — Creación del documento. Revisión del sistema en Notion, modelo de datos y fórmulas confirmadas vía API. Repo inicializado.

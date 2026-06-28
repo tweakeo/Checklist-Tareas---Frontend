@@ -6,6 +6,10 @@
    Filtros TURNO × PERSONA: independientes y apilables (lógica AND).
    P.ej. 🌅 Apertura + León, o 🌙 Cierre + Chopo. La agrupación del tablero
    se adapta a lo que esté fijado (ver currentGrouping / buildGroups).
+
+   Dos vistas (botón a la izquierda del marcador):
+   · Pendientes  → tareas de HOY sin hacer.
+   · Completadas → tareas ya hechas hoy (espejo de la vista "Completadas" de Notion).
    ===================================================================== */
 
 const CONFIG = {
@@ -23,10 +27,12 @@ const PERSON_COLOR = {
 };
 
 const state = {
-  tasks: [],
+  tasks: [],             // pendientes de hoy (servidor)
+  completed: [],         // completadas hoy (servidor)
+  view: "pending",       // 'pending' | 'done'
   turno: null,           // null = todos los turnos
   person: null,          // null = todas las personas
-  done: new Set(),
+  done: new Set(),       // ids marcados en esta sesión (eran pendientes)
   source: "semilla",
 };
 
@@ -42,15 +48,18 @@ async function loadTasks() {
       if (!r.ok) throw new Error("api " + r.status);
       const data = await r.json();
       state.tasks = data.tasks || [];
+      state.completed = data.completed || [];
       state.source = "Notion (live)";
     } else {
       const r = await fetch(CONFIG.seedUrl, { cache: "no-store" });
       const data = await r.json();
       state.tasks = data.tasks || [];
+      state.completed = data.completed || [];
       state.source = "semilla · " + (data.generatedAt || "");
     }
   } catch (e) {
     state.tasks = [];
+    state.completed = [];
     toast("No se pudieron cargar las tareas", true);
     console.error(e);
   }
@@ -63,9 +72,14 @@ async function loadTasks() {
 }
 
 /* ---------------- HELPERS ---------------- */
-function pending() { return state.tasks.filter((t) => !state.done.has(t.id)); }
 function personsOf(t) { return t.responsables.length ? t.responsables : ["Sin asignar"]; }
 function turnoOf(t) { return t.turno || "Sin turno"; }
+function allToday() { return [...state.tasks, ...state.completed]; }
+
+// Pendientes reales = lo que el servidor da como pendiente menos lo marcado en sesión.
+function pendingTasks() { return state.tasks.filter((t) => !state.done.has(t.id)); }
+// Completadas = lo que el servidor da como hecho + lo marcado en esta sesión (optimista).
+function completedTasks() { return [...state.completed, ...state.tasks.filter((t) => state.done.has(t.id))]; }
 
 function uniqueByOrder(values, order) {
   const set = new Set(values);
@@ -74,14 +88,20 @@ function uniqueByOrder(values, order) {
   return [...ordered, ...rest];
 }
 
-function taskTurnos() { return uniqueByOrder(state.tasks.map(turnoOf), TURNO_ORDER); }
-function taskPersons() { return uniqueByOrder(state.tasks.flatMap(personsOf), PERSON_ORDER); }
+function taskTurnos() { return uniqueByOrder(allToday().map(turnoOf), TURNO_ORDER); }
+function taskPersons() { return uniqueByOrder(allToday().flatMap(personsOf), PERSON_ORDER); }
 
-// ¿La tarea pasa los filtros activos (turno Y persona)? Ignora el estado "hecha".
+// ¿La tarea pasa los filtros activos (turno Y persona)?
 function matchesFilters(t) {
   const okTurno = !state.turno || turnoOf(t) === state.turno;
   const okPerson = !state.person || personsOf(t).includes(state.person);
   return okTurno && okPerson;
+}
+
+// Lista base de la vista actual, ya filtrada por turno/persona.
+function baseListForView() {
+  const list = state.view === "done" ? completedTasks() : pendingTasks();
+  return list.filter(matchesFilters);
 }
 
 // Agrupamos por la dimensión que NO está fijada. Si ambas están fijadas → lista plana.
@@ -103,23 +123,15 @@ function esc(s) { return (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 /* ---------------- RENDER ---------------- */
 function render() {
+  renderChrome();
   renderScore();
   renderFilters();
-  const groups = buildGroups();
+  const list = baseListForView();
+  const groups = buildGroups(list);
   board.innerHTML = "";
 
   const hasAny = groups.some((g) => g.tasks.length > 0);
-  const scopeTotal = state.tasks.filter(matchesFilters).length;
-  if (!hasAny) {
-    const empty = $("#emptyState");
-    if (scopeTotal === 0) {
-      empty.querySelector("h2").textContent = "Sin tareas aquí";
-      empty.querySelector("p").textContent = "No hay tareas para esta combinación de filtros.";
-    } else {
-      empty.querySelector("h2").textContent = "¡Todo hecho!";
-      empty.querySelector("p").textContent = "No quedan tareas pendientes en esta vista. Buen trabajo.";
-    }
-  }
+  if (!hasAny) setEmptyState();
   $("#emptyState").hidden = hasAny;
   board.hidden = !hasAny;
   if (!hasAny) return;
@@ -133,7 +145,7 @@ function render() {
         <span class="group__title">
           ${g.dot ? `<span class="group__dot" style="background:${g.dot}"></span>` : ""}${esc(g.title)}
         </span>
-        <span class="group__count">${g.tasks.length} pdte${g.tasks.length === 1 ? "" : "s"}</span>
+        <span class="group__count">${g.tasks.length}${state.view === "done" ? "" : " pdte" + (g.tasks.length === 1 ? "" : "s")}</span>
       </div>
       <div class="group__list"></div>`;
     const list = sec.querySelector(".group__list");
@@ -142,8 +154,40 @@ function render() {
   }
 }
 
-function buildGroups() {
-  const p = pending().filter(matchesFilters);
+// Cabecera variable: título grande + botón/leyenda de la vista.
+function renderChrome() {
+  const isDone = state.view === "done";
+  document.querySelector(".topbar__title").textContent = isDone ? "Completadas" : "Tareas de hoy";
+  $("#viewToggleLabel").textContent = isDone ? "Pendientes" : "Completadas";
+  $("#viewToggleIcon").textContent = isDone ? "↩" : "✓";
+  const btn = $("#viewToggle");
+  btn.classList.toggle("is-active", isDone);
+  btn.setAttribute("aria-pressed", String(isDone));
+  btn.title = isDone ? "Volver a tareas pendientes" : "Ver tareas completadas hoy";
+}
+
+function setEmptyState() {
+  const empty = $("#emptyState");
+  const h = empty.querySelector("h2");
+  const p = empty.querySelector("p");
+  if (state.view === "done") {
+    const totalDone = completedTasks().length;
+    empty.querySelector(".emptystate__mark").textContent = totalDone ? "🔍" : "✓";
+    h.textContent = totalDone ? "Sin completadas aquí" : "Aún nada completado";
+    p.textContent = totalDone
+      ? "Ninguna tarea completada con esta combinación de filtros."
+      : "Todavía no se ha marcado ninguna tarea hoy. Aparecerán aquí en cuanto las marquéis.";
+  } else {
+    const scopeTotal = state.tasks.filter(matchesFilters).length;
+    empty.querySelector(".emptystate__mark").textContent = "✓";
+    h.textContent = scopeTotal === 0 ? "Sin tareas aquí" : "¡Todo hecho!";
+    p.textContent = scopeTotal === 0
+      ? "No hay tareas para esta combinación de filtros."
+      : "No quedan tareas pendientes en esta vista. Buen trabajo.";
+  }
+}
+
+function buildGroups(p) {
   const g = currentGrouping();
 
   if (g === "turno") {
@@ -174,32 +218,38 @@ function taskCard(t) {
   // Mostramos una etiqueta solo si aporta info: ni está fijada por el filtro ni es la cabecera de grupo.
   const showTurno = !state.turno && g !== "turno";
   const showPersons = !state.person && g !== "persona";
+  const isDoneView = state.view === "done";
 
   const el = document.createElement("article");
-  el.className = "task";
+  el.className = "task" + (isDoneView ? " task--done" : "");
   el.dataset.id = t.id;
   const tags = [];
   if (showTurno && t.turno) tags.push(`<span class="tag tag--turno">${esc(t.turno)}</span>`);
   if (showPersons) personsOf(t).forEach((r) => tags.push(`<span class="tag" style="border-color:${PERSON_COLOR[r] || "var(--pc-ink)"}">${esc(r)}</span>`));
   if (t.prioridad) tags.push(`<span class="tag ${prioClass(t.prioridad)}">${esc(t.prioridad)}</span>`);
   if (t.mins) tags.push(`<span class="tag tag--mins">${t.mins}′</span>`);
+
+  const action = isDoneView
+    ? `<div class="donebadge" aria-label="Completada"><span class="donebadge__icon">✓</span>Hecha</div>`
+    : `<button class="checkbtn" aria-label="Marcar como hecha: ${esc(t.tarea)}">
+        <span class="checkbtn__icon">✓</span>Check
+      </button>`;
+
   el.innerHTML = `
     <div class="task__main">
       <p class="task__name">${esc(t.tarea)}</p>
       <div class="task__meta">${tags.join("")}</div>
     </div>
-    <button class="checkbtn" aria-label="Marcar como hecha: ${esc(t.tarea)}">
-      <span class="checkbtn__icon">✓</span>Check
-    </button>`;
-  el.querySelector(".checkbtn").addEventListener("click", () => check(t, el));
+    ${action}`;
+  if (!isDoneView) el.querySelector(".checkbtn").addEventListener("click", () => check(t, el));
   return el;
 }
 
 function renderScore() {
-  const scope = state.tasks.filter(matchesFilters);
-  const doneInScope = scope.filter((t) => state.done.has(t.id)).length;
-  $("#scoreDone").textContent = doneInScope;
-  $("#scoreTotal").textContent = scope.length;
+  const total = allToday().filter(matchesFilters).length;
+  const done = completedTasks().filter(matchesFilters).length;
+  $("#scoreDone").textContent = done;
+  $("#scoreTotal").textContent = total;
   $("#dateLabel").textContent = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 }
 
@@ -276,6 +326,10 @@ function toast(msg, isError) {
   toastTimer = setTimeout(() => el.classList.remove("is-show"), 2200);
 }
 
+$("#viewToggle").addEventListener("click", () => {
+  state.view = state.view === "done" ? "pending" : "done";
+  render();
+});
 $("#reloadBtn").addEventListener("click", loadTasks);
 
 loadTasks();

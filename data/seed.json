@@ -548,5 +548,40 @@
       "mins": null,
       "hechaHoy": false
     }
+  ],
+  "completed": [
+    {
+      "id": "seed-done-1",
+      "tarea": "PREPARAR SALA — MESAS, SILLAS, BARRA",
+      "responsables": ["Equipo"],
+      "turno": "🌅 Apertura",
+      "dia": ["Jueves"],
+      "prioridad": "Core (inflexible)",
+      "categoria": ["Apertura"],
+      "mins": 15,
+      "hechaHoy": true
+    },
+    {
+      "id": "seed-done-2",
+      "tarea": "ENCENDER Y VERIFICAR TABLETS DELIVERY",
+      "responsables": ["León", "Chopo", "Manu"],
+      "turno": "🌅 Apertura",
+      "dia": ["Jueves"],
+      "prioridad": "Core (inflexible)",
+      "categoria": ["Apertura"],
+      "mins": 5,
+      "hechaHoy": true
+    },
+    {
+      "id": "seed-done-3",
+      "tarea": "PRODUCCIÓN DE SALSAS — LAB",
+      "responsables": ["Chopo"],
+      "turno": "🌆 Entreturnos",
+      "dia": ["Jueves"],
+      "prioridad": "Core (inflexible)",
+      "categoria": ["Producción"],
+      "mins": 90,
+      "hechaHoy": true
+    }
   ]
 }
